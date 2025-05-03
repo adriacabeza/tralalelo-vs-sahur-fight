@@ -172,12 +172,14 @@
     }
 
     const newSession = async () => {
-      const sessionId = document.getElementById("sessionId").value;
+      let sessionId = document.getElementById("sessionId").value;
 
       if (sessionId === "") {
         alert("Please enter a session ID.");
         return;
       }
+
+      sessionId = `tumtumtum.${sessionId}`;
 
       window.sessionId = sessionId;
       console.log(`Creating session with ID: ${sessionId}`);
