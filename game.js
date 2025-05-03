@@ -82,6 +82,13 @@ function getRandomPosition() {
 
 window.getRandomPosition = getRandomPosition;
 
+function placeStar(symbol) {
+  let tx;
+  do { tx = Math.floor(Math.random() * COLS); }
+  while (world[surfaceY][tx] !== 0);
+  world[surfaceY][tx] = symbol;
+}
+
 /* ===== ENTITIES ===== */
 class Player {
   constructor(id, me, x, y, name, controls) {
@@ -280,8 +287,8 @@ function render() {
       ctx.fillStyle = terrainPattern;
       ctx.fillRect(x * TILE, y * TILE, TILE, TILE);
     }
-    if (cell === `⭐${p1.id}` || cell === `⭐${p2.id}`) {
-      ctx.fillStyle = cell === `⭐${p1.id}` ? "gold" : "cyan";
+    if (cell === `⭐1` || cell === `⭐2`) {
+      ctx.fillStyle = cell === `⭐1` ? "gold" : "cyan";
 
       const CARA = TILE / 2;
       ctx.fillRect(x * TILE + CARA / 2, y * TILE + CARA / 2, CARA, CARA)
@@ -449,17 +456,8 @@ function generateTestLevel({
   /* ---- 3) Sprinkle stars on surface ----------------------------- */
   const surfaceY = Math.min(...ground) - 1;
 
-  function placeStar(symbol) {
-    let tx;
-    do { tx = Math.floor(Math.random() * COLS); }
-    while (world[surfaceY][tx] !== 0);
-    world[surfaceY][tx] = symbol;
-  }
-
-  if (players.length > 0) {
-    placeStar(`⭐${p1.id}`);
-    placeStar(`⭐${p2.id}`);
-  }
+  placeStar(`⭐1`);
+  placeStar(`⭐2`);
 
   return world;
 }
@@ -485,14 +483,11 @@ function generateDummyTestLevel() {
     world[ty][tx] = symbol;
   }
 
-  if (players.length > 0) {
-    placeStar(`⭐${p1.id}`);
-    placeStar(`⭐${p2.id}`);
-  }
+  placeStar(`⭐1`);
+  placeStar(`⭐2`);
 
   return world;
 }
-
 
 /* ===== INPUT: toggle blocks ===== */
 canvas.addEventListener("mousedown", e => {
@@ -512,8 +507,8 @@ canvas.addEventListener("mousedown", e => {
   if (
     world[gy] 
       && world[gy][gx] !== undefined 
-      && world[gy][gx] !== `⭐${p1.id}`
-      && world[gy][gx] !== `⭐${p2.id}`
+      && world[gy][gx] !== `⭐1`
+      && world[gy][gx] !== `⭐2`
   ) {
     const isAir = world[gy][gx] === 0;
     world[gy][gx] = isAir ? 1 : 0;
@@ -560,6 +555,17 @@ function externalPlayerMove(id, x, y) {
 
 window.externalPlayerMove = externalPlayerMove;
 
+function externalNewStart(id, x, y) {
+  if (gameOver) return;
+
+  const gx   = Math.floor(x);
+  const gy   = Math.floor(y);
+
+  world[gy][gx] = `⭐${id}`;
+}
+
+window.externalPlayerMove = externalPlayerMove;
+
 function toggleBlockAtMouse() {
   if (gameOver) return;
 
@@ -591,7 +597,9 @@ function checkTargets(player) {
 
   if (world[gy] === undefined) return;
 
-  if (world[gy][gx] === `⭐${player.id}`) {
+  let idx = player.me ? 1 : 2;
+
+  if (world[gy][gx] === `⭐${idx}`) {
     player.score++;
     world[gy][gx] = 0;
 
@@ -602,10 +610,17 @@ function checkTargets(player) {
       ty = Math.floor(Math.random() * ROWS); 
     } while (world[ty][tx] !== 0);
 
-    world[ty][tx] = `⭐${player.id}`;
+    world[ty][tx] = `⭐${idx}`;
+
+    window.eventCallback(
+      "new_star",
+      {
+        position: {
+          x: tx,
+          y: ty
+        },
+        id: idx,
+      }
+    );
   }
 }
-
-/* ===== BACKEND STUBS ===== */
-async function saveMatch(result) { console.log("saveMatch()", result); }
-async function loadMatch(id)     { console.log("loadMatch()", id); }

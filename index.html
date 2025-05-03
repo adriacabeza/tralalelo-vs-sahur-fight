@@ -178,6 +178,12 @@
           data.data.position.y,
           data.data.final_state
         )
+      } else if (data.type === "new_star") {
+        window.externalToggleBlock(
+          data.data.id,
+          data.data.position.x,
+          data.data.position.y,
+        )
       }
     }
 
