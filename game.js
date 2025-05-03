@@ -1,10 +1,11 @@
 /* ===== CONFIG ===== */
 const canvas = document.getElementById("game");
-const TILE            = 24;          // px
+const TILE            = 48;          // px
+const DIV_AQUESTA = 64 / TILE;
 const COLS            = Math.floor(canvas.width/TILE);
 const ROWS            = Math.floor(canvas.height/TILE);
 const GRAVITY         = 1;
-const JUMP_V          = -30;
+const JUMP_V          = -20;
 const MOVE_V          = 10.5;         // faster movement
 const FPS             = 60;
 const MAX_POINTS      = 10;          // best of 10 stars
@@ -33,13 +34,13 @@ const player1Image = new Image();
 player1Image.src = "player1.png";
 let player1Pattern = null;
 player1Image.onload = () => {
-    player1Pattern = ctx.createPattern(player1Image, "repeat");
+    player1Pattern = ctx.createImageBitmap(player1Image, "repeat");
 }
 const player2Image = new Image();
 player2Image.src = "player2.png";
 let player2Pattern = null;
 player2Image.onload = () => {
-    player2Pattern = ctx.createPattern(player2Image, "repeat");
+    player2Pattern = ctx.createImageBitmap(player2Image, "repeat");
 }
 
 document.addEventListener("keydown", e => {
@@ -63,22 +64,14 @@ canvas.addEventListener("mousemove", e => {
 const world = [...Array(ROWS)].map(() => Array(COLS).fill(0));  // 0 = air, 1 = block
 generateTestLevel();
 
-
-function getSprite(id) {
-  // fall back on colours while the image is still loading
-  if (id === "A" && player1Image.complete) return player1Image;
-  if (id === "B" && player2Image.complete) return player2Image;
-  return null;               // → caller will draw a coloured box
-}
-
 /* ===== ENTITIES ===== */
 class Player {
-  constructor(id, x, y, color, controls, isUseless=false) {
+  constructor(id, x, y, name, controls, isUseless=false) {
     this.id       = id;
     this.x        = x;   this.y = y;
     this.vx       = 0;   this.vy = 0;
     this.w        = 1;   this.h  = 1;
-    this.color    = color;
+    this.name    = name;
     this.controls = controls;
     this.score    = 0;
     this.isJumping = true;
@@ -153,13 +146,21 @@ class Player {
   }
 
   render() {
-    ctx.fillStyle = this.color;
-    ctx.fillRect(this.x * TILE, this.y * TILE, this.w * TILE, this.h * TILE);
+    // ctx.fillStyle = this.color;
+    // ctx.fillRect(this.x * TILE, this.y * TILE, this.w * TILE, this.h * TILE);
+
+    const delta = 1 + (this.isJumping ? 0.5 : 0);
+
+    if (this.id == "A") {
+      ctx.drawImage(player1Image, this.x * TILE, this.y * TILE, this.w * TILE, this.h * TILE * delta);
+    } else if (this.id == "B") {
+        ctx.drawImage(player2Image, this.x * TILE, this.y * TILE, this.w * TILE, this.h * TILE * delta);
+    }
   }
 }
 
-const p1      = new Player("A", 2, 10, "gold", { left: "KeyA", right: "KeyD", jump: "KeyW" });
-const p2      = new Player("B", 28,10, "cyan", { left: "ArrowLeft", right: "ArrowRight", jump: "ArrowUp" });
+const p1      = new Player("A", 2, 10, "Tralalero", { left: "KeyA", right: "KeyD", jump: "KeyW" });
+const p2      = new Player("B", 28,10, "TumTumTum", { left: "ArrowLeft", right: "ArrowRight", jump: "ArrowUp" });
 // for loop creating adding more players into a Players array
 const players = [p1, p2];
 players.forEach(p => p.choose_position());
@@ -179,9 +180,9 @@ function update() {
   players.forEach(p => { if (!p.isUseless){
     p.input(); p.step();} }
   );
-  if (p1.score + p2.score >= MAX_POINTS) {
+  if (Math.max(p1.score,p2.score) >= MAX_POINTS) {
     gameOver = true;
-    const winner = p1.score === p2.score ? "TIE" : (p1.score > p2.score ? "PLAYER A" : "PLAYER B");
+    const winner = p1.score === p2.score ? "TIE" : (p1.score > p2.score ? p1.name : p2.name);
     alert(`Match over! ${winner} wins.`);
     saveMatch({ p1: p1.score, p2: p2.score, date: Date.now() });
   }
@@ -197,11 +198,13 @@ function render() {
     }
     if (cell === "⭐A" || cell === "⭐B") {
       ctx.fillStyle = cell === "⭐A" ? "gold" : "cyan";
-      ctx.fillRect(x * TILE + 6, y * TILE + 6, 12, 12);
+
+      const CARA = TILE / 2;
+      ctx.fillRect(x * TILE + CARA / 2, y * TILE + CARA / 2, CARA, CARA)
     }
   }));
   players.forEach(p => p.render());
-  hud.textContent = `🟡 ${p1.score} – ⭐ ${p2.score}`;
+  hud.textContent = `${p1.name} ${p1.score} – ${p2.name} ${p2.score}`;
 }
 
 function getBorders(x, y, w, h) {
