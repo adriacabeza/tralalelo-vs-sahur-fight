@@ -8,7 +8,8 @@ window.eventCallback = eventCallback;
 const canvas = document.getElementById("game");
 
 const TILE            = 48;          // px
-const DIV_AQUESTA     = 64 / TILE;
+const IMG_SIZE        = 64;          // px
+const DIV_AQUESTA     = IMG_SIZE / TILE;
 const COLS            = Math.floor(canvas.width/TILE);
 const ROWS            = Math.floor(canvas.height/TILE);
 const GRAVITY         = 1;
@@ -279,8 +280,8 @@ function render() {
       ctx.fillStyle = terrainPattern;
       ctx.fillRect(x * TILE, y * TILE, TILE, TILE);
     }
-    if (cell === "⭐A" || cell === "⭐B") {
-      ctx.fillStyle = cell === "⭐A" ? "gold" : "cyan";
+    if (cell === `⭐${p1.id}` || cell === `⭐${p2.id}`) {
+      ctx.fillStyle = cell === `⭐${p1.id}` ? "gold" : "cyan";
 
       const CARA = TILE / 2;
       ctx.fillRect(x * TILE + CARA / 2, y * TILE + CARA / 2, CARA, CARA)
@@ -454,8 +455,8 @@ function generateTestLevel({
     world[surfaceY][tx] = symbol;
   }
 
-  placeStar("⭐A");
-  placeStar("⭐B");
+  placeStar(`⭐${p1.id}`);
+  placeStar(`⭐${p2.id}`);
 
   return world;
 }
@@ -481,8 +482,8 @@ function generateDummyTestLevel() {
     world[ty][tx] = symbol;
   }
 
-  placeStar("⭐A");
-  placeStar("⭐B");
+  placeStar(`⭐${p1.id}`);
+  placeStar(`⭐${p2.id}`);
 }
 
 
@@ -500,7 +501,12 @@ canvas.addEventListener("mousedown", e => {
   const gx   = Math.floor((e.clientX - rect.left) / TILE);
   const gy   = Math.floor((e.clientY - rect.top)  / TILE);
 
-  if (world[gy] && world[gy][gx] !== undefined && world[gy][gx] !== "⭐A" && world[gy][gx] !== "⭐B") {
+  if (
+    world[gy] 
+      && world[gy][gx] !== undefined 
+      && world[gy][gx] !== `⭐${p1.id}`
+      && world[gy][gx] !== `⭐${p2.id}`
+  ) {
     const isAir = world[gy][gx] === 0;
     world[gy][gx] = isAir ? 1 : 0;
 
@@ -574,13 +580,20 @@ function toggleBlockAtMouse() {
 /* ===== TARGET PICKUP ===== */
 function checkTargets(player) {
   const gx = Math.floor(player.x), gy = Math.floor(player.y);
+
   if (world[gy] === undefined) return;
+
   if (world[gy][gx] === `⭐${player.id}`) {
     player.score++;
     world[gy][gx] = 0;
+
     let tx, ty;
-    do { tx = Math.floor(Math.random() * COLS); ty = Math.floor(Math.random() * ROWS); }
-    while (world[ty][tx] !== 0);
+
+    do { 
+      tx = Math.floor(Math.random() * COLS); 
+      ty = Math.floor(Math.random() * ROWS); 
+    } while (world[ty][tx] !== 0);
+
     world[ty][tx] = `⭐${player.id}`;
   }
 }

@@ -49,14 +49,14 @@
       font-size: 16px;
       border: none;
       border-radius: 5px;
-      background-color: #4287f5;
-      color: white;
+      background-color: gold;
+      color: black;
       cursor: pointer;
       margin: 5px;
     }
 
     #session button:hover {
-      background-color: #357ae8;
+      background-color: #f0c36d;
     }
 
     #session button:disabled {
@@ -72,12 +72,22 @@
       font-size: 24px;
       font-weight: bold;
     }
+
+    #game {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      border: 8px solid gold;
+      border-radius: 5px;
+      /* display: none; */
+    }
   </style>
 </head>
 
 <body>
   <h1 id="hud" style="display: none;">🟡 0 – ⭐ 0</h1>
-  <canvas id="game" width="1200" height="600" style="display: none;"></canvas>
+  <canvas id="game" width="1200" height="600"></canvas>
 
   <!-- A div containg an input field for the user to set the session id, and two buttons below: one to create a session, one to join a session. -->
   <div id="session">
@@ -194,7 +204,7 @@
 
       const waitingText = document.createElement("p");
 
-      waitingText.innerText = "Waiting for a player to join...";
+      waitingText.innerText = `Waiting for a player to join: ${sessionId}`;
       waitingText.style.fontSize = "24px";
       waitingText.style.fontWeight = "bold";
       waitingText.style.marginTop = "20px";
