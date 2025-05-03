@@ -489,7 +489,8 @@ function generateDummyTestLevel() {
 
 /* ===== INPUT: toggle blocks ===== */
 canvas.addEventListener("mousedown", e => {
-  if (gameOver) return;
+  if (gameOver || players.length === 0) return;
+
   const now = performance.now();
 
   if (now - lastActionTime < ACTION_COOLDOWN) return;
