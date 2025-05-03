@@ -211,7 +211,7 @@
     };
 
     const joinSession = async () => {
-      const sessionId = document.getElementById("sessionId").value;
+      let sessionId = document.getElementById("sessionId").value;
 
       if (sessionId === "") {
         alert("Please enter a session ID.");
