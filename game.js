@@ -448,6 +448,7 @@ function generateTestLevel({
 
   /* ---- 3) Sprinkle stars on surface ----------------------------- */
   const surfaceY = Math.min(...ground) - 1;
+
   function placeStar(symbol) {
     let tx;
     do { tx = Math.floor(Math.random() * COLS); }
@@ -455,8 +456,10 @@ function generateTestLevel({
     world[surfaceY][tx] = symbol;
   }
 
-  placeStar(`⭐${p1.id}`);
-  placeStar(`⭐${p2.id}`);
+  if (players.length > 0) {
+    placeStar(`⭐${p1.id}`);
+    placeStar(`⭐${p2.id}`);
+  }
 
   return world;
 }
@@ -482,8 +485,12 @@ function generateDummyTestLevel() {
     world[ty][tx] = symbol;
   }
 
-  placeStar(`⭐${p1.id}`);
-  placeStar(`⭐${p2.id}`);
+  if (players.length > 0) {
+    placeStar(`⭐${p1.id}`);
+    placeStar(`⭐${p2.id}`);
+  }
+
+  return world;
 }
 
 
