@@ -83,10 +83,8 @@ function getRandomPosition() {
 window.getRandomPosition = getRandomPosition;
 
 function placeStar(symbol) {
-  let tx;
-  do { tx = Math.floor(Math.random() * COLS); }
-  while (world[surfaceY][tx] !== 0);
-  world[surfaceY][tx] = symbol;
+  const { x, y } = getRandomPosition();
+  world[y][x] = symbol;
 }
 
 /* ===== ENTITIES ===== */
