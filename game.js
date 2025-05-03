@@ -1,7 +1,14 @@
+const eventCallback = () => {
+  console.log(`Callback not implemented!!!!`);
+}
+
+window.eventCallback = eventCallback;
+
 /* ===== CONFIG ===== */
 const canvas = document.getElementById("game");
+
 const TILE            = 48;          // px
-const DIV_AQUESTA = 64 / TILE;
+const DIV_AQUESTA     = 64 / TILE;
 const COLS            = Math.floor(canvas.width/TILE);
 const ROWS            = Math.floor(canvas.height/TILE);
 const GRAVITY         = 1;
@@ -30,18 +37,12 @@ let terrainPattern = null;
 terrainImage.onload = () => {
   terrainPattern = ctx.createPattern(terrainImage, "repeat");
 };
+
 const player1Image = new Image();
 player1Image.src = "player1.png";
-let player1Pattern = null;
-player1Image.onload = () => {
-    player1Pattern = ctx.createImageBitmap(player1Image, "repeat");
-}
+
 const player2Image = new Image();
 player2Image.src = "player2.png";
-let player2Pattern = null;
-player2Image.onload = () => {
-    player2Pattern = ctx.createImageBitmap(player2Image, "repeat");
-}
 
 document.addEventListener("keydown", e => {
   keys[e.code] = true;
@@ -61,12 +62,29 @@ canvas.addEventListener("mousemove", e => {
   mousePos.y = e.clientY - rect.top;
 });
 
-const world = [...Array(ROWS)].map(() => Array(COLS).fill(0));  // 0 = air, 1 = block
-generateTestLevel();
+let world = [...Array(ROWS)].map(() => Array(COLS).fill(0));  // 0 = air, 1 = block
+// generateTestLevel();
+
+function getRandomPosition() {
+  var x = Math.floor(Math.random() * (COLS - 1));
+  var y = Math.floor(Math.random() * (ROWS - 1));
+  let count = 0;
+
+  while (!!world[y][x] && count < MAGIC_NUMBER ** 2) {
+    x = Math.ceil(Math.random() * (COLS - 1));
+    y = Math.ceil(Math.random() * (ROWS - 1));
+    count++;
+  }
+
+  return { x, y };
+}
+
+window.getRandomPosition = getRandomPosition;
 
 /* ===== ENTITIES ===== */
 class Player {
-  constructor(id, x, y, name, controls, isUseless=false) {
+  constructor(id, me, x, y, name, controls) {
+    this.me = me;
     this.id       = id;
     this.x        = x;   this.y = y;
     this.vx       = 0;   this.vy = 0;
@@ -75,9 +93,11 @@ class Player {
     this.controls = controls;
     this.score    = 0;
     this.isJumping = true;
-    this.isUseless = isUseless;
   }
+
   input() {
+    if (!this.controls) return;
+
     const c = this.controls;
     if (keys[c.left])  this.vx = -MOVE_V;
     if (keys[c.right]) this.vx =  MOVE_V;
@@ -90,8 +110,11 @@ class Player {
   }
 
   step() {
+    if (!this.me) return;
+
     this.move(this.vx / FPS, this.vy / FPS);
   }
+
   move(dx, dy) {
     const steps = 5; // break into 5 smaller steps to prevent tunneling
     const stepX = dx / steps;
@@ -120,27 +143,31 @@ class Player {
       }
       checkTargets(this);
     }
+
     if (this.isFuckingDead()) {
       this.score -= 1;
       this.vx = 0; this.vy = 0;
       // random position on respawn
-       this.choose_position();
+      this.choose_position();
+    }
+
+    // Send 50%
+    if (Math.random() < 0.2) {
+      window.eventCallback(
+        "move",
+        {
+          position: {
+            x: this.x,
+            y: this.y
+          },
+        }
+      );
     }
   }
 
   choose_position() {
-    var x = Math.floor(Math.random() * (COLS - 1));
-    var y = Math.floor(Math.random() * (ROWS - 1));
-    let count = 0;
-    while (!!world[y][x] && count < MAGIC_NUMBER) {
-      x = Math.ceil(Math.random() * (COLS - 1));
-      y = Math.ceil(Math.random() * (ROWS - 1));
-      count++;
-    }
-    console.log(world[y][x]);
-    if (count === MAGIC_NUMBER-1) {
-      location.reload();
-    }
+    const { x, y } = getRandomPosition();
+
     this.x = x;
     this.y = y;
   }
@@ -151,19 +178,58 @@ class Player {
 
     const delta = 1 + (this.isJumping ? 0.5 : 0);
 
-    if (this.id == "A") {
+    if (this.me) {
       ctx.drawImage(player1Image, this.x * TILE, this.y * TILE, this.w * TILE, this.h * TILE * delta);
-    } else if (this.id == "B") {
-        ctx.drawImage(player2Image, this.x * TILE, this.y * TILE, this.w * TILE, this.h * TILE * delta);
+    } else {
+      ctx.drawImage(player2Image, this.x * TILE, this.y * TILE, this.w * TILE, this.h * TILE * delta);
     }
   }
 }
 
-const p1      = new Player("A", 2, 10, "Tralalero", { left: "KeyA", right: "KeyD", jump: "KeyW" });
-const p2      = new Player("B", 28,10, "TumTumTum", { left: "ArrowLeft", right: "ArrowRight", jump: "ArrowUp" });
-// for loop creating adding more players into a Players array
-const players = [p1, p2];
-players.forEach(p => p.choose_position());
+// const p1 = new Player("A", 2, 10, "Tralalero", { left: "KeyA", right: "KeyD", jump: "KeyW" });
+// const p2 = new Player("B", 28,10, "TumTumTum", { left: "ArrowLeft", right: "ArrowRight", jump: "ArrowUp" });
+// const players = [p1, p2];
+// players.forEach(p => p.choose_position());
+
+const players = [];
+let p1, p2;
+
+function setupGame(userId, data) {
+  const {
+    players: dPlayers,
+    world: dWorld
+  } = data;
+
+  for (const p of dPlayers) {
+    const isMe = !p.userId || p.userId === userId;
+
+    const pp = new Player(
+      p.userId,
+      isMe,
+      p.position.x,
+      p.position.y,
+      p.name ?? p.userId,
+      isMe ? {
+        left: "ArrowLeft",
+        right: "ArrowRight",
+        jump:  "ArrowUp",
+      } : undefined
+    );
+
+    players.push(pp);
+
+    if (isMe) {
+      p1 = pp;
+    } else {
+      p2 = pp;
+    }
+  }
+
+  world = dWorld;
+}
+
+window.setupGame = setupGame;
+
 let acc  = 0, last = performance.now();
 
 function loop(now) {
@@ -176,20 +242,37 @@ function loop(now) {
 requestAnimationFrame(loop);
 
 function update() {
-  if (gameOver) return;
+  if (gameOver || players.length === 0) return;
+
   players.forEach(p => { if (!p.isUseless){
     p.input(); p.step();} }
   );
-  if (Math.max(p1.score,p2.score) >= MAX_POINTS) {
+
+  if (Math.max(p1.score, p2.score) >= MAX_POINTS) {
     gameOver = true;
+
     const winner = p1.score === p2.score ? "TIE" : (p1.score > p2.score ? p1.name : p2.name);
     alert(`Match over! ${winner} wins.`);
-    saveMatch({ p1: p1.score, p2: p2.score, date: Date.now() });
+
+    window.eventCallback(
+      "game_over",
+      {
+        winner: winner,
+        players: players.map(p => ({
+          userId: p.id,
+          name: p.name,
+          score: p.score
+        }))
+      }
+    );
   }
 }
 
 function render() {
+  if (world.length === 0 || players.length === 0) return;
+
   ctx.clearRect(0, 0, canvas.width, canvas.height);
+
   world.forEach((row, y) => row.forEach((cell, x) => {
     if (cell === 1){
       // use terrain.png to fill the blocks
@@ -203,6 +286,7 @@ function render() {
       ctx.fillRect(x * TILE + CARA / 2, y * TILE + CARA / 2, CARA, CARA)
     }
   }));
+
   players.forEach(p => p.render());
   hud.textContent = `${p1.name} ${p1.score} – ${p2.name} ${p2.score}`;
 }
@@ -312,6 +396,7 @@ function makeNoise(seed = 1337) {
 
   return { perlin2 };
 }
+
 function generateTestLevel({
                              octaves   = 10,     // number of stacked noise layers
                              scale     = 0.2,   // broader hills
@@ -371,7 +456,11 @@ function generateTestLevel({
 
   placeStar("⭐A");
   placeStar("⭐B");
+
+  return world;
 }
+
+window.generateTestLevel = generateTestLevel;
 
 function generateDummyTestLevel() {
   const density = 0.8;      // % chance of a block
@@ -401,23 +490,84 @@ function generateDummyTestLevel() {
 canvas.addEventListener("mousedown", e => {
   if (gameOver) return;
   const now = performance.now();
+
   if (now - lastActionTime < ACTION_COOLDOWN) return;
+
   lastActionTime = now;
+
   const rect = canvas.getBoundingClientRect();
+
   const gx   = Math.floor((e.clientX - rect.left) / TILE);
   const gy   = Math.floor((e.clientY - rect.top)  / TILE);
+
   if (world[gy] && world[gy][gx] !== undefined && world[gy][gx] !== "⭐A" && world[gy][gx] !== "⭐B") {
-    world[gy][gx] = world[gy][gx] === 1 ? 0 : 1;
+    const isAir = world[gy][gx] === 0;
+    world[gy][gx] = isAir ? 1 : 0;
+
+    window.eventCallback(
+      "toggle_block",
+      {
+        position: {
+          x: gx,
+          y: gy
+        },
+        final_state: world[gy][gx]
+      }
+    );
   }
 });
 
+function externalToggleBlock(x, y, finalState) {
+  if (gameOver) return;
+
+  const gx   = Math.floor(x);
+  const gy   = Math.floor(y);
+
+  if (world[gy] && world[gy][gx] !== undefined) {
+    world[gy][gx] = finalState;
+  }
+}
+
+window.externalToggleBlock = externalToggleBlock;
+
+function externalPlayerMove(id, x, y) {
+  if (gameOver) return;
+
+  const gx   = Math.floor(x);
+  const gy   = Math.floor(y);
+
+  const player = players.find(p => p.id === id);
+
+  if (player) {
+    player.x = gx;
+    player.y = gy;
+  }
+}
+
+window.externalPlayerMove = externalPlayerMove;
+
 function toggleBlockAtMouse() {
   if (gameOver) return;
+
   const rect = canvas.getBoundingClientRect();
+
   const gx   = Math.floor(mousePos.x / TILE);
   const gy   = Math.floor(mousePos.y / TILE);
+
   if (world[gy] && world[gy][gx] !== undefined) {
-    world[gy][gx] = world[gy][gx] === 1 ? 0 : 1;
+    const isAir = world[gy][gx] === 0;
+    world[gy][gx] = isAir ? 1 : 0;
+
+    window.eventCallback(
+      "toggle_block",
+      {
+        position: {
+          x: gx,
+          y: gy
+        },
+        final_state: world[gy][gx]
+      }
+    );
   }
 }
 

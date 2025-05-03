@@ -1,17 +1,290 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <title>2‑Player Block‑Brawl Prototype</title>
   <style>
-    canvas { background:#4287f5; display:block; margin:0 auto; }
-    body   { margin:0; font-family:system-ui; text-align:center; }
+    canvas {
+      background: #4287f5;
+      display: block;
+      margin: 0 auto;
+    }
+
+    body {
+      margin: 0;
+      font-family: system-ui;
+      text-align: center;
+    }
+
+    #session {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #session input {
+      width: 420px;
+      padding: 10px;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      margin-bottom: 10px;
+    }
+
+    #buttons {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+    }
+
+    #session button {
+      width: 210px;
+      padding: 10px;
+      font-size: 16px;
+      border: none;
+      border-radius: 5px;
+      background-color: #4287f5;
+      color: white;
+      cursor: pointer;
+      margin: 5px;
+    }
+
+    #session button:hover {
+      background-color: #357ae8;
+    }
+
+    #session button:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+
+    #hud {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      color: white;
+      font-size: 24px;
+      font-weight: bold;
+    }
   </style>
 </head>
+
 <body>
-  <h1 id="hud">⏱ 60 | 🟡 0 – ⭐ 0</h1>
-  <canvas id="game" width="1200" height="600"></canvas>
+  <h1 id="hud" style="display: none;">🟡 0 – ⭐ 0</h1>
+  <canvas id="game" width="1200" height="600" style="display: none;"></canvas>
+
+  <!-- A div containg an input field for the user to set the session id, and two buttons below: one to create a session, one to join a session. -->
+  <div id="session">
+    <h3>Enter Session ID!</h3>
+    <input type="text" id="sessionId" placeholder="Session ID" />
+    <div id="buttons">
+      <button id="create" onclick="window.newSession()">Create Session</button>
+      <button id="join" onclick="window.joinSession()">Join Session</button>
+    </div>
+  </div>
 
   <script src="game.js"></script>
+  <script type="module">
+    import {
+      connect,
+      JSONCodec,
+    } from "https://cdn.jsdelivr.net/npm/nats.ws@1.10.0/esm/nats.js";
+
+    const userId = crypto.randomUUID();
+    window.userId = userId;
+
+    console.log(`User ID: ${userId}`);
+
+    const sc = new JSONCodec();
+
+    const nc = await connect({
+      servers: ["wss://demo.nats.io:8443"],
+    });
+
+    const showCanvas = () => {
+      const gameCanvas = document.getElementById("game");
+      const hud = document.getElementById("hud");
+      const sessionDiv = document.getElementById("session");
+
+      // Remove the session div and set the canvas to be visible
+      while (sessionDiv.firstChild) {
+        sessionDiv.removeChild(sessionDiv.firstChild);
+      }
+
+      sessionDiv.style.display = "none";
+      hud.style.display = "block";
+      gameCanvas.style.display = "block";
+    };
+
+    window.eventCallback = (type, data) => {
+      console.log(`Sending event [${data.type}] at ${data.ts}ms from ${userId}`);
+
+      nc.publish(window.sessionId, sc.encode({
+        ts: performance.now(),
+        userId: window.userId,
+        type,
+        data,
+      }));
+    };
+
+    const handle = (msg) => {
+      const data = sc.decode(msg.data);
+
+      console.log(`(${data.userId === userId ? 'SELF' : 'OTHER'}) Received [${data.type}] event at ${data.ts}ms from ${data.userId}`);
+
+      if (data.userId === userId) {
+        return;
+      }
+
+      console.log(`Received a request`, {msg, data});
+
+      if (data.type === "join") {
+        console.log(`Player joined session, replying...`);
+
+        window.setupGame(userId, data.data);
+
+        msg.respond(sc.encode({
+          type: "joined",
+          ts: performance.now(),
+          userId,
+        }));
+
+        showCanvas();
+      } else if (data.type === "move") {
+        window.externalPlayerMove(
+          data.userId,
+          data.data.position.x,
+          data.data.position.y,
+        )
+      } else if (data.type === "toggle_block") {
+        window.externalToggleBlock(
+          data.data.position.x,
+          data.data.position.y,
+          data.data.final_state
+        )
+      }
+    }
+
+    const newSession = async () => {
+      const sessionId = document.getElementById("sessionId").value;
+
+      if (sessionId === "") {
+        alert("Please enter a session ID.");
+        return;
+      }
+
+      window.sessionId = sessionId;
+      console.log(`Creating session with ID: ${sessionId}`);
+
+      const sub = nc.subscribe(sessionId);
+
+      const sessionDiv = document.getElementById("session");
+
+      while (sessionDiv.firstChild) {
+        sessionDiv.removeChild(sessionDiv.firstChild);
+      }
+
+      const waitingText = document.createElement("p");
+
+      waitingText.innerText = "Waiting for a player to join...";
+      waitingText.style.fontSize = "24px";
+      waitingText.style.fontWeight = "bold";
+      waitingText.style.marginTop = "20px";
+
+      sessionDiv.appendChild(waitingText);
+
+      for await (const msg of sub) {
+        try {
+          handle(msg);
+        } catch (e) {
+          console.error("Error handling message:", e);
+        }
+      }
+    };
+
+    const joinSession = async () => {
+      const sessionId = document.getElementById("sessionId").value;
+
+      if (sessionId === "") {
+        alert("Please enter a session ID.");
+        return;
+      }
+
+      window.sessionId = sessionId;
+
+      console.log(`Joining session with ID: ${sessionId}`);
+
+      const sub = nc.subscribe(sessionId);
+
+      const world = window.generateTestLevel();
+
+      const myUserInfo = {
+        userId,
+        position: window.getRandomPosition(),
+      };
+      const theirUserInfo = {
+        userId: null,
+        position: window.getRandomPosition(),
+      };
+
+      const setupData = {
+        world,
+        players: [
+          myUserInfo,
+          theirUserInfo,
+        ],
+      }
+
+      // Make this request reply
+      const reply = await nc.request(sessionId, sc.encode({
+        type: "join",
+        ts: performance.now(),
+        userId,
+        data: setupData,
+      }));
+
+      const replyData = sc.decode(reply.data);
+
+      console.log(`Got a reply, waiting for the session to start...`, {replyData});
+
+      window.setupGame(
+        userId,
+        {
+          ...setupData,
+          players: [
+            myUserInfo,
+            {
+              userId: replyData.userId,
+              position: theirUserInfo.position,
+            },
+          ],
+        }
+      );
+
+      showCanvas();
+
+      for await (const msg of sub) {
+        try {
+          handle(msg);
+        } catch (e) {
+          console.error("Error handling message:", e);
+        }
+      }
+    };
+
+    window.newSession = newSession;
+    window.joinSession = joinSession;
+
+    window.addEventListener("beforeunload", () => {
+      nc.drain();
+    });
+  </script>
 </body>
+
 </html>
