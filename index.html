@@ -252,21 +252,42 @@
       }
     }
 
+    document.getElementById("sessionId").addEventListener("input", () => {
+      // Check text in the input field
+      const inputField = document.getElementById("sessionId");
+
+      console.log("Input field value:", inputField.value);
+
+      if (!inputField.value || inputField.value === "") {
+        // If empty, remove the audio tag
+        const existingAudios = document.querySelectorAll("audio");
+
+        existingAudios.forEach(audio => {
+          audio.remove();
+        });
+      }
+    });
+
     const playLobbyAudio = () => {
       // remove audio tag if it exists but only 50% of the time
       if (Math.random() > 0.5) {
         const existingAudio = document.querySelector("audio");
+
         if (existingAudio) {
           existingAudio.remove();
         }
       }
+
       // add audio tag with source background_music.mp3
       const audio = document.createElement("audio");
+
       audio.src = "./background_music.mp3";
       audio.autoplay = true;
       audio.loop = true;
       audio.hidden = true;
+
       document.body.appendChild(audio);
+
       if (audio) {
         audio.play();
       }
