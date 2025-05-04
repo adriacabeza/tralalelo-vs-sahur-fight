@@ -11,9 +11,9 @@ const COLS            = Math.floor(canvas.width/TILE);
 const ROWS            = Math.floor(canvas.height/TILE);
 const GRAVITY         = 1;
 const JUMP_V          = -20;
-const MOVE_V          = 10.5;         // faster movement
+const MOVE_V          = 11;         // faster movement
 const FPS             = 60;
-const MAX_POINTS      = 10;          // best of 10 stars
+const MAX_POINTS      = 3;          
 const ACTION_COOLDOWN = 50;         // ms cooldown for build/destroy
 const COLLISION_DELTA = 0.05;        // how much to offset the collision box
 const MAGIC_NUMBER = Math.floor(83 * TILE * Math.PI >> 2) // 83 is a prime number, so it will be hard to find a collision;
@@ -153,17 +153,16 @@ class Player {
       this.choose_position();
     }
 
-    // Send 50%
-      window.eventCallback(
-        "move",
-        {
-          position: {
-            x: this.x,
-            y: this.y
-          },
-        }
-      );
-    }
+    window.eventCallback(
+      "move",
+      {
+        position: {
+          x: this.x,
+          y: this.y
+        },
+      }
+    );
+  }
 
   choose_position() {
     const { x, y } = getRandomPosition();
@@ -217,6 +216,16 @@ function setupGame(userId, data) {
     }
   }
 
+  for (let i = 0; i < world.length; i++) {
+    for (let j = 0; j < world[i].length; j++) {
+      if (dWorld[i][j] === `⭐1`) {
+        dWorld[i][j] = `⭐2`;
+      } else if (dWorld[i][j] === `⭐2`) {
+        dWorld[i][j] = `⭐1`;
+      }
+    }
+  }
+
   world = dWorld;
 }
 
@@ -236,11 +245,16 @@ requestAnimationFrame(loop);
 function update() {
   if (gameOver || players.length === 0) return;
 
-  players.forEach(p => { if (!p.isUseless){
-    p.input(); p.step();} }
-  );
+  players.forEach(p => { 
+    if (!p.isUseless) {
+      p.input(); p.step();
+    }
+  });
 
-  if (Math.max(p1.score, p2.score) >= MAX_POINTS) {
+  // if (Math.max(p1.score, p2.score) >= MAX_POINTS) {
+
+  // Only check yourself
+  if (p1.score >= MAX_POINTS) {
     gameOver = true;
 
     const winner = p1.score === p2.score ? "TIE" : (p1.score > p2.score ? p1.name : p2.name);
@@ -249,7 +263,7 @@ function update() {
     window.eventCallback(
       "game_over",
       {
-        winner: winner,
+        winner,
         players: players.map(p => ({
           userId: p.id,
           name: p.name,
@@ -280,7 +294,7 @@ function render() {
   }));
 
   players.forEach(p => p.render());
-  hud.textContent = `${p1.name} ${p1.score} – ${p2.name} ${p2.score}`;
+  hud.textContent = `YOU ${p1.score} - FUCKING SAHUR ${p2.score}`;
 }
 
 function getBorders(x, y, w, h) {
@@ -480,6 +494,47 @@ function externalToggleBlock(x, y, finalState) {
 
 window.externalToggleBlock = externalToggleBlock;
 
+function externalNewStar(x, y, id) {
+  if (gameOver) return;
+
+  const invId = id === 1 ? 2 : 1;
+
+  const gx   = Math.floor(x);
+  const gy   = Math.floor(y);
+
+  // Remove the old star
+  for (let i = 0; i < world.length; i++) {
+    for (let j = 0; j < world[i].length; j++) {
+      if (world[i][j] === `⭐${invId}`) {
+        world[i][j] = 0;
+      }
+    }
+  }
+
+  if (world[gy] && world[gy][gx] !== undefined) {
+    world[gy][gx] = `⭐${invId}`;
+  }
+
+  if (players.length > 0) {
+    if (id === 1) {
+      p1.score++;
+    } else {
+      p2.score++;
+    }
+  }
+}
+
+window.externalNewStar = externalNewStar;
+
+function externalEndGame(winner, gamePlayers) {
+  if (gameOver) return;
+  
+  gameOver = true;
+  alert(`Match over! ${winner} wins.`);
+}
+
+window.endGame = externalEndGame;
+
 function externalPlayerMove(id, x, y) {
   if (gameOver) return;
 
@@ -494,7 +549,6 @@ function externalPlayerMove(id, x, y) {
   }
 }
 
-window.externalPlayerMove = externalPlayerMove;
 window.externalPlayerMove = externalPlayerMove;
 
 function toggleBlockAtMouse() {
@@ -523,11 +577,13 @@ function toggleBlockAtMouse() {
 }
 
 function checkTargets(player) {
-  const gx = Math.floor(player.x), gy = Math.floor(player.y);
+  if (gameOver || !player.me) return;
+  let idx = player.me ? 1 : 2;
+
+  const gx = Math.floor(player.x);
+  const gy = Math.floor(player.y);
 
   if (world[gy] === undefined) return;
-
-  let idx = player.me ? 1 : 2;
 
   if (world[gy][gx] === `⭐${idx}`) {
     player.score++;
