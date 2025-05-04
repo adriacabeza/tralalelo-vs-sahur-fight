@@ -87,12 +87,14 @@
 
 <body>
   <h1 id="hud" style="display: none;">🟡 0 – ⭐ 0</h1>
+  <canvas id="background" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -1;"></canvas>
+
   <canvas id="game" width="1200" height="600"></canvas>
 
   <!-- A div containg an input field for the user to set the session id, and two buttons below: one to create a session, one to join a session. -->
   <div id="session">
     <h3>Enter Session ID!</h3>
-    <input type="text" id="sessionId"i onkeypress="window.playLobbyAudio()" placeholder="Session ID" />
+    <input type="text" id="sessionId" onkeypress="window.playLobbyAudio()" placeholder="Session ID" />
     <div id="buttons">
       <button id="create" onclick="window.newSession()">Create Session</button>
       <button id="join" onclick="window.joinSession()">Join Session</button>
@@ -104,6 +106,16 @@
       connect,
       JSONCodec,
     } from "https://cdn.jsdelivr.net/npm/nats.ws@1.10.0/esm/nats.js";
+
+    const canvas = document.getElementById("background");
+    const ctx = canvas.getContext("2d");
+
+    // Set actual drawing size to match full screen
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    // Clear and draw...
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     const userId = crypto.randomUUID();
     window.userId = userId;
@@ -181,21 +193,21 @@
         showCanvas();
       } else if (data.type === "move") {
         window.externalPlayerMove(
-          data.userId,
-          data.data.position.x,
-          data.data.position.y,
+                data.userId,
+                data.data.position.x,
+                data.data.position.y,
         )
       } else if (data.type === "toggle_block") {
         window.externalToggleBlock(
-          data.data.position.x,
-          data.data.position.y,
-          data.data.final_state
+                data.data.position.x,
+                data.data.position.y,
+                data.data.final_state
         )
       } else if (data.type === "new_star") {
         window.externalToggleBlock(
-          data.data.id,
-          data.data.position.x,
-          data.data.position.y,
+                data.data.id,
+                data.data.position.x,
+                data.data.position.y,
         )
       }
     }
@@ -306,17 +318,17 @@
       console.log(`Got a reply, waiting for the session to start...`, {replyData});
 
       window.setupGame(
-        userId,
-        {
-          ...setupData,
-          players: [
-            myUserInfo,
-            {
-              userId: replyData.userId,
-              position: theirUserInfo.position,
-            },
-          ],
-        }
+              userId,
+              {
+                ...setupData,
+                players: [
+                  myUserInfo,
+                  {
+                    userId: replyData.userId,
+                    position: theirUserInfo.position,
+                  },
+                ],
+              }
       );
 
       showCanvas();
@@ -334,9 +346,114 @@
     window.joinSession = joinSession;
     window.playLobbyAudio = playLobbyAudio;
 
-    window.addEventListener("beforeunload", () => {
-      nc.drain();
-    });
+    const loadImage = (src) =>
+            new Promise((resolve, reject) => {
+              const img = new Image();
+              img.src = src;
+              img.onload = () => resolve(img);
+              img.onerror = reject;
+            });
+
+    class Sprite {
+      constructor(img, canvasWidth, canvasHeight) {
+      this.img = img;
+      this.reset(canvasWidth, canvasHeight);
+    }
+
+      reset(canvasWidth, canvasHeight) {
+      this.x = Math.random() * canvasWidth;
+      this.y = Math.random() * canvasHeight;
+      this.scale = 1.5 + Math.random();
+      this.rotation = Math.random() * 2 * Math.PI;
+      this.vx = (Math.random() - 0.5) * 0.5;
+      this.vy = (Math.random() - 0.5) * 0.5;
+      this.vr = (Math.random() - 0.5) * 0.02;
+      this.vs = (Math.random() - 0.5) * 0.01;
+      this.alpha = 0.4 + Math.random() * 0.2;
+    }
+
+      update(canvasWidth, canvasHeight) {
+      this.x += this.vx;
+      this.y += this.vy;
+      this.rotation += this.vr;
+      this.scale += this.vs;
+
+      // Bounce off edges
+      if (this.x < 0 || this.x > canvasWidth) this.vx *= -1;
+      if (this.y < 0 || this.y > canvasHeight) this.vy *= -1;
+      if (this.scale < 0.5 || this.scale > 1.5) this.vs *= -1;
+    }
+
+      draw(ctx) {
+      const w = this.img.width * this.scale;
+      const h = this.img.height * this.scale;
+
+      ctx.save();
+      ctx.translate(this.x, this.y);
+      ctx.rotate(this.rotation);
+      ctx.globalAlpha = this.alpha;
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(this.img, -w / 2, -h / 2, w, h);
+      ctx.restore();
+    }
+    }
+
+      let backgroundSprites = [];
+
+      async function generatePixelBackground(images = ["player1.png", "player2.png"]) {
+      const canvas = document.getElementById("background");
+      const ctx = canvas.getContext("2d");
+
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+
+      const loadedImages = await Promise.all(images.map(src => loadImage(src)));
+
+      backgroundSprites = [];
+      for (let i = 0; i < 80; i++) {
+      const img = loadedImages[Math.floor(Math.random() * loadedImages.length)];
+      backgroundSprites.push(new Sprite(img, canvas.width, canvas.height));
+    }
+
+      animateBackground(ctx, canvas);
+    }
+
+      function animateBackground(ctx, canvas) {
+        let gradientOffset = 0;
+
+        function loop() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+          gradientOffset += 0.005;
+          const gradient = ctx.createLinearGradient(
+                  0, canvas.height * Math.sin(gradientOffset),
+                  canvas.width, canvas.height * Math.cos(gradientOffset)
+          );
+
+          gradient.addColorStop(0, "#19ff53");
+          gradient.addColorStop(0.5, "#d91ead");
+          gradient.addColorStop(1, "#fff826");
+
+          ctx.fillStyle = gradient;
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        for (const sprite of backgroundSprites) {
+          sprite.update(canvas.width, canvas.height);
+          sprite.draw(ctx);
+        }
+
+        requestAnimationFrame(loop);
+      }
+      loop();
+    }
+
+      generatePixelBackground(["player1.png", "player2.png"]);
+
+
+  window.addEventListener("beforeunload", () => {
+  nc.drain();
+  });
   </script>
 </body>
 
