@@ -163,8 +163,8 @@
 
     const userId = crypto.randomUUID();
     window.userId = userId;
-    const activePlayers = new Set();
-    activePlayers.add(userId);
+    const activePlayers = new Map();
+    activePlayers.set(userId, performance.now());
 
 
     console.log(`User ID: ${userId}`);
@@ -190,10 +190,17 @@
     setInterval(() => {
       window.eventCallback(
               "send_player_id",
-              {
-                playerId: userId,
-              }
+              {}
       );
+      // cleanup the old players
+      activePlayers.forEach((value, key) => {
+        console.log("Di fference between now and value:", performance.now() - value);
+        if (performance.now() - value > 5000) {
+          activePlayers.delete(key);
+        }
+        const playersDiv = document.getElementById("players");
+        playersDiv.innerText = `Active Players ${activePlayers.size}`;
+      });
     }, 1000);
 
     const showCanvas = () => {
@@ -216,6 +223,7 @@
 
     window.eventCallback = (type, data) => {
       if (type === "send_player_id"){
+        console.log("Sending player id...");
         nc.publish("tumtumtum.monitoring_topic", sc.encode({
           ts: performance.now(),
           userId: window.userId,
@@ -237,7 +245,7 @@
       console.log("Received message:", data);
       // console.log(`(${data.userId === userId ? 'SELF' : 'OTHER'}) Received [${data.type}] event at ${data.ts}ms from ${data.userId}`);
 
-      if (data.userId === userId) {
+      if (data.userId === userId && data.type !== "send_player_id") {
         return;
       }
 
@@ -296,9 +304,8 @@
           data.data.diff,
         )
       } else if (data.type === "send_player_id") {
-        activePlayers.add(data.data.playerId);
-        const playersDiv = document.getElementById("players");
-        playersDiv.innerText = `Active Players (${activePlayers.size})`;
+        activePlayers.set(data.userId, data.ts);
+        console.log("Active players:", activePlayers);
       }
     }
 
