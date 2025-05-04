@@ -141,7 +141,7 @@
     };
 
     window.eventCallback = (type, data) => {
-      console.log(`Sending event [${data.type}] at ${data.ts}ms from ${userId}`);
+      // console.log(`Sending event [${data.type}] at ${data.ts}ms from ${userId}`);
 
       nc.publish(window.sessionId, sc.encode({
         ts: performance.now(),
@@ -154,13 +154,11 @@
     const handle = (msg) => {
       const data = sc.decode(msg.data);
 
-      console.log(`(${data.userId === userId ? 'SELF' : 'OTHER'}) Received [${data.type}] event at ${data.ts}ms from ${data.userId}`);
+      // console.log(`(${data.userId === userId ? 'SELF' : 'OTHER'}) Received [${data.type}] event at ${data.ts}ms from ${data.userId}`);
 
       if (data.userId === userId) {
         return;
       }
-
-      console.log(`Received a request`, {msg, data});
 
       if (data.type === "join") {
         console.log(`Player joined session, replying...`);
@@ -179,7 +177,7 @@
         document.body.appendChild(newAudio);
 
 
-        window.setupGame(userId, data.data);
+        window.setupGame(userId, data.data, true);
 
         msg.respond(sc.encode({
           type: "joined",
@@ -190,26 +188,31 @@
         showCanvas();
       } else if (data.type === "move") {
         window.externalPlayerMove(
-                data.userId,
-                data.data.position.x,
-                data.data.position.y,
+          data.userId,
+          data.data.position.x,
+          data.data.position.y,
         )
       } else if (data.type === "toggle_block") {
         window.externalToggleBlock(
-                data.data.position.x,
-                data.data.position.y,
-                data.data.final_state
+          data.data.position.x,
+          data.data.position.y,
+          data.data.final_state
         )
       } else if (data.type === "new_star") {
         window.externalNewStar(
-                data.data.position.x,
-                data.data.position.y,
-                data.data.id,
+          data.data.position.x,
+          data.data.position.y,
+          data.data.id,
         )
       } else if (data.type === "game_over") {
         window.externalEndGame(
           data.data.winner,
           data.data.players,
+        )
+      } else if (data.type === "score_diff") {
+        window.newScore(
+          data.data.id,
+          data.data.diff,
         )
       }
     }
@@ -320,17 +323,18 @@
       console.log(`Got a reply, waiting for the session to start...`, {replyData});
 
       window.setupGame(
-              userId,
-              {
-                ...setupData,
-                players: [
-                  myUserInfo,
-                  {
-                    userId: replyData.userId,
-                    position: theirUserInfo.position,
-                  },
-                ],
-              }
+        userId,
+        {
+          ...setupData,
+          players: [
+            myUserInfo,
+            {
+              userId: replyData.userId,
+              position: theirUserInfo.position,
+            },
+          ],
+        },
+        false
       );
 
       showCanvas();
@@ -349,60 +353,60 @@
     window.playLobbyAudio = playLobbyAudio;
 
     const loadImage = (src) =>
-            new Promise((resolve, reject) => {
-              const img = new Image();
-              img.src = src;
-              img.onload = () => resolve(img);
-              img.onerror = reject;
-            });
+      new Promise((resolve, reject) => {
+        const img = new Image();
+        img.src = src;
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+      });
 
     class Sprite {
       constructor(img, canvasWidth, canvasHeight) {
-      this.img = img;
-      this.reset(canvasWidth, canvasHeight);
-    }
+        this.img = img;
+        this.reset(canvasWidth, canvasHeight);
+      }
 
       reset(canvasWidth, canvasHeight) {
-      this.x = Math.random() * canvasWidth;
-      this.y = Math.random() * canvasHeight;
-      this.scale = 1.5 + Math.random();
-      this.rotation = Math.random() * 2 * Math.PI;
-      this.vx = (Math.random() - 0.5) * 0.5;
-      this.vy = (Math.random() - 0.5) * 0.5;
-      this.vr = (Math.random() - 0.5) * 0.02;
-      this.vs = (Math.random() - 0.5) * 0.01;
-      this.alpha = 0.4 + Math.random() * 0.2;
-    }
+        this.x = Math.random() * canvasWidth;
+        this.y = Math.random() * canvasHeight;
+        this.scale = 1.5 + Math.random();
+        this.rotation = Math.random() * 2 * Math.PI;
+        this.vx = (Math.random() - 0.5) * 0.5;
+        this.vy = (Math.random() - 0.5) * 0.5;
+        this.vr = (Math.random() - 0.5) * 0.02;
+        this.vs = (Math.random() - 0.5) * 0.01;
+        this.alpha = 0.4 + Math.random() * 0.2;
+      }
 
       update(canvasWidth, canvasHeight) {
-      this.x += this.vx;
-      this.y += this.vy;
-      this.rotation += this.vr;
-      this.scale += this.vs;
+        this.x += this.vx;
+        this.y += this.vy;
+        this.rotation += this.vr;
+        this.scale += this.vs;
 
-      // Bounce off edges
-      if (this.x < 0 || this.x > canvasWidth) this.vx *= -1;
-      if (this.y < 0 || this.y > canvasHeight) this.vy *= -1;
-      if (this.scale < 0.5 || this.scale > 1.5) this.vs *= -1;
-    }
+        // Bounce off edges
+        if (this.x < 0 || this.x > canvasWidth) this.vx *= -1;
+        if (this.y < 0 || this.y > canvasHeight) this.vy *= -1;
+        if (this.scale < 0.5 || this.scale > 1.5) this.vs *= -1;
+      }
 
       draw(ctx) {
-      const w = this.img.width * this.scale;
-      const h = this.img.height * this.scale;
+        const w = this.img.width * this.scale;
+        const h = this.img.height * this.scale;
 
-      ctx.save();
-      ctx.translate(this.x, this.y);
-      ctx.rotate(this.rotation);
-      ctx.globalAlpha = this.alpha;
-      ctx.imageSmoothingEnabled = false;
-      ctx.drawImage(this.img, -w / 2, -h / 2, w, h);
-      ctx.restore();
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.rotation);
+        ctx.globalAlpha = this.alpha;
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(this.img, -w / 2, -h / 2, w, h);
+        ctx.restore();
+      }
     }
-    }
 
-      let backgroundSprites = [];
+    let backgroundSprites = [];
 
-      async function generatePixelBackground(images = ["player1.png", "player2.png"]) {
+    async function generatePixelBackground(images = ["player1.png", "player2.png"]) {
       const canvas = document.getElementById("background");
       const ctx = canvas.getContext("2d");
 
@@ -413,32 +417,32 @@
 
       backgroundSprites = [];
       for (let i = 0; i < 80; i++) {
-      const img = loadedImages[Math.floor(Math.random() * loadedImages.length)];
-      backgroundSprites.push(new Sprite(img, canvas.width, canvas.height));
-    }
+        const img = loadedImages[Math.floor(Math.random() * loadedImages.length)];
+        backgroundSprites.push(new Sprite(img, canvas.width, canvas.height));
+      }
 
       animateBackground(ctx, canvas);
     }
 
-      function animateBackground(ctx, canvas) {
-        let gradientOffset = 0;
+    function animateBackground(ctx, canvas) {
+      let gradientOffset = 0;
 
-        function loop() {
+      function loop() {
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
 
-          gradientOffset += 0.005;
-          const gradient = ctx.createLinearGradient(
-                  0, canvas.height * Math.sin(gradientOffset),
-                  canvas.width, canvas.height * Math.cos(gradientOffset)
-          );
+        gradientOffset += 0.005;
+        const gradient = ctx.createLinearGradient(
+          0, canvas.height * Math.sin(gradientOffset),
+          canvas.width, canvas.height * Math.cos(gradientOffset)
+        );
 
-          gradient.addColorStop(0, "#19ff53");
-          gradient.addColorStop(0.5, "#d91ead");
-          gradient.addColorStop(1, "#fff826");
+        gradient.addColorStop(0, "#19ff53");
+        gradient.addColorStop(0.5, "#d91ead");
+        gradient.addColorStop(1, "#fff826");
 
-          ctx.fillStyle = gradient;
-          ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
 
         for (const sprite of backgroundSprites) {
           sprite.update(canvas.width, canvas.height);
@@ -450,12 +454,12 @@
       loop();
     }
 
-      generatePixelBackground(["player1.png", "player2.png"]);
+    generatePixelBackground(["player1.png", "player2.png"]);
 
 
-  window.addEventListener("beforeunload", () => {
-  nc.drain();
-  });
+    window.addEventListener("beforeunload", () => {
+      nc.drain();
+    });
   </script>
 </body>
 

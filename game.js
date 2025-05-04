@@ -1,5 +1,5 @@
 const eventCallback = () => {
-  console.log(`Callback not implemented!!!!`);
+  console.error(`Callback not implemented!!!!`);
 }
 
 window.eventCallback = eventCallback;
@@ -151,6 +151,14 @@ class Player {
       this.vx = 0; this.vy = 0;
       // random position on respawn
       this.choose_position();
+
+      window.eventCallback(
+        "score_diff",
+        {
+          id: this.me ? 2 : 1,
+          diff: -1,
+        }
+      );
     }
 
     window.eventCallback(
@@ -185,7 +193,7 @@ class Player {
 const players = [];
 let p1, p2;
 
-function setupGame(userId, data) {
+function setupGame(userId, data, shouldSwap) {
   const {
     players: dPlayers,
     world: dWorld
@@ -216,12 +224,14 @@ function setupGame(userId, data) {
     }
   }
 
-  for (let i = 0; i < world.length; i++) {
-    for (let j = 0; j < world[i].length; j++) {
-      if (dWorld[i][j] === `⭐1`) {
-        dWorld[i][j] = `⭐2`;
-      } else if (dWorld[i][j] === `⭐2`) {
-        dWorld[i][j] = `⭐1`;
+  if (shouldSwap) {
+    for (let i = 0; i < world.length; i++) {
+      for (let j = 0; j < world[i].length; j++) {
+        if (dWorld[i][j] === `⭐1`) {
+          dWorld[i][j] = `⭐2`;
+        } else if (dWorld[i][j] === `⭐2`) {
+          dWorld[i][j] = `⭐1`;
+        }
       }
     }
   }
@@ -251,10 +261,7 @@ function update() {
     }
   });
 
-  // if (Math.max(p1.score, p2.score) >= MAX_POINTS) {
-
-  // Only check yourself
-  if (p1.score >= MAX_POINTS) {
+  if (Math.max(p1.score, p2.score) >= MAX_POINTS) {
     gameOver = true;
 
     const winner = p1.score === p2.score ? "TIE" : (p1.score > p2.score ? p1.name : p2.name);
@@ -516,15 +523,32 @@ function externalNewStar(x, y, id) {
   }
 
   if (players.length > 0) {
-    if (id === 1) {
+    if (invId === 1) {
       p1.score++;
     } else {
       p2.score++;
     }
+
+    hud.textContent = `YOU ${p1.score} - FUCKING SAHUR ${p2.score}`;
   }
 }
 
 window.externalNewStar = externalNewStar;
+
+function externalNewScore(id, diff) {
+  if (gameOver) return;
+  if (players.length === 0) return;
+
+  if (id === 1) {
+    p1.score += diff;
+  } else if (id === 2) {
+    p2.score += diff;
+  }
+
+  hud.textContent = `YOU ${p1.score} - FUCKING SAHUR ${p2.score}`;
+}
+
+window.newScore = externalNewScore;
 
 function externalEndGame(winner, gamePlayers) {
   if (gameOver) return;
