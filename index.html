@@ -3,7 +3,21 @@
 
 <head>
   <meta charset="UTF-8" />
-  <title>2‑Player Block‑Brawl Prototype</title>
+  <title>
+    Tralalero VS Sahur Fight
+  </title>
+
+  <meta name="description" content="The EPIC battle between Tralalero and Sahur!">
+
+  <meta property="og:title" content="Tralalero VS Sahur Fight">
+  <meta property="og:description" content="The EPIC battle between Tralalero and Sahur!">
+  <meta property="og:image" content="https://adriacabeza.github.io/tralalelo-vs-sahur-fight/wait.png">
+  <meta property="og:url" content="https://adriacabeza.github.io/tralalelo-vs-sahur-fight/">
+  <meta property="og:type" content="website">
+
+  <!-- Optional: Favicon -->
+  <link rel="icon" href="/favicon.ico" type="image/x-icon">
+
   <style>
     canvas {
       background: #4287f5;
@@ -301,6 +315,11 @@
         return;
       }
 
+      // yolo
+      if (sessionId.startsWith("tumtumtum.")) {
+        sessionId = sessionId.substring("tumtumtum.".length);
+      }
+
       sessionId = `tumtumtum.${sessionId}`;
 
       window.sessionId = sessionId;
@@ -316,7 +335,28 @@
 
       const waitingText = document.createElement("p");
 
-      waitingText.innerText = `Waiting for a player to join: ${sessionId}`;
+      const url = new URL(window.location.href)
+
+      const div = document.createElement("div");
+
+      const text = document.createElement("h3");
+      text.innerText = `Waiting for a player to join: ${sessionId}`;
+
+      const link = document.createElement("a");
+
+      link.innerText = `Share this link`;
+      link.href = `${url.origin}?js=${sessionId}`;
+      link.target = "_blank";
+
+      link.style.backgroundColor = "gold";
+      link.style.color = "black";
+      link.style.padding = "10px";
+
+      div.appendChild(text);
+      div.appendChild(link);
+
+      sessionDiv.appendChild(div);
+
       waitingText.style.fontSize = "24px";
       waitingText.style.fontWeight = "bold";
       waitingText.style.marginTop = "20px";
@@ -403,6 +443,21 @@
         }
       }
     };
+
+    const urlParams = new URLSearchParams(window.location.search);
+
+    const ns = urlParams.get("ns");
+    const js = urlParams.get("js");
+
+    if (ns) {
+      document.getElementById("sessionId").value = ns;
+      newSession();
+    }
+
+    if (js) {
+      document.getElementById("sessionId").value = js;
+      joinSession();
+    }
 
     window.newSession = newSession;
     window.joinSession = joinSession;
