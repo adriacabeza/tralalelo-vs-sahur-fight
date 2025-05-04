@@ -177,6 +177,16 @@
       // servers: ["ws://localhost:8080"],
     });
 
+    window.prefix = "tumtumtum.>";
+    let sub;
+    try {
+      sub = nc.subscribe(window.prefix);
+    } catch (err) {
+      console.error(`Failed to subscribe to ${window.prefix}:`, err);
+    }
+
+
+
     setInterval(() => {
       window.eventCallback(
               "send_player_id",
@@ -292,6 +302,20 @@
       }
     }
 
+     (async () => {
+      for await (const msg of sub) {
+        console.log("New Session, received message:", msg);
+        try {
+          if (msg.subject ===  "tumtumtum.monitoring_topic" || msg.subject === window.sessionId) {
+            console.log("Received message:", msg);
+            handle(msg)
+          }
+        } catch (e) {
+          console.error("Error handling game msg:", e);
+        }
+      }
+    })();
+
     document.getElementById("sessionId").addEventListener("input", () => {
       // Check text in the input field
       const inputField = document.getElementById("sessionId");
@@ -348,13 +372,6 @@
 
       sessionId = `tumtumtum.${sessionId}`;
       window.sessionId = sessionId;
-      window.prefix = "tumtumtum.>";
-      let sub;
-      try {
-        sub = nc.subscribe(window.prefix);
-      } catch (err) {
-        console.error(`Failed to subscribe to ${window.prefix}:`, err);
-      }
       const sessionDiv = document.getElementById("session");
 
       while (sessionDiv.firstChild) {
@@ -389,20 +406,6 @@
       waitingText.style.fontWeight = "bold";
       waitingText.style.marginTop = "20px";
       sessionDiv.appendChild(waitingText);
-
-      await (async () => {
-        for await (const msg of sub) {
-          console.log("New Session, received message:", msg);
-          try {
-            if (msg.subject ===  "tumtumtum.monitoring_topic" || msg.subject === window.sessionId) {
-              console.log("Received message:", msg);
-              handle(msg)
-            }
-          } catch (e) {
-            console.error("Error handling game msg:", e);
-          }
-        }
-      })();
     };
 
     const joinSession = async () => {
