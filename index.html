@@ -3,7 +3,24 @@
 
 <head>
   <meta charset="UTF-8" />
-  <title>2‑Player Block‑Brawl Prototype</title>
+
+  <title>
+    Tralalero VS Sahur Fight
+  </title>
+
+  <meta name="description" content="The EPIC battle between Tralalero and Sahur!">
+
+  <meta property="og:title" content="Tralalero VS Sahur Fight">
+  <meta property="og:description" content="The EPIC battle between Tralalero and Sahur!">
+  <meta property="og:image" content="https://adriacabeza.github.io/tralalelo-vs-sahur-fight/wait.png">
+  <meta property="og:url" content="https://adriacabeza.github.io/tralalelo-vs-sahur-fight/">
+  <meta property="og:type" content="website">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+  <link rel="manifest" href="/site.webmanifest">
+
   <style>
     canvas {
       background: #4287f5;
@@ -19,6 +36,7 @@
 
     #session {
       position: absolute;
+      color: white;
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
@@ -26,6 +44,7 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
+      z-index: 1000;
     }
 
     #session input {
@@ -49,14 +68,16 @@
       font-size: 16px;
       border: none;
       border-radius: 5px;
-      background-color: gold;
-      color: black;
+      background-color: #f0c36d;
+      font-weight: bold;
+      shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+      color: whitesmoke;
       cursor: pointer;
       margin: 5px;
     }
 
     #session button:hover {
-      background-color: #f0c36d;
+      background-color: gold;
     }
 
     #session button:disabled {
@@ -78,6 +99,7 @@
       transform: translate(-50%, -50%);
       border: 8px solid gold;
       border-radius: 5px;
+      display: none;
     }
   </style>
 </head>
@@ -90,11 +112,11 @@
 
   <!-- A div containg an input field for the user to set the session id, and two buttons below: one to create a session, one to join a session. -->
   <div id="session">
-    <h3>Enter Session ID!</h3>
+    <h2>Enter Session ID!</h2>
     <input type="text" id="sessionId" onkeypress="window.playLobbyAudio()" placeholder="Session ID" />
     <div id="buttons">
-      <button id="create" onclick="window.newSession()">Create Session</button>
-      <button id="join" onclick="window.joinSession()">Join Session</button>
+      <button id="create" onclick="window.newSession()">CREATE</button>
+      <button id="join" onclick="window.joinSession()">JOIN</button>
     </div>
   </div>
   <script src="game.js"></script>
@@ -113,6 +135,31 @@
 
     // Clear and draw...
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Add wait.mp4 to the `canvas`
+    const video = document.createElement("video");
+
+    video.id = "wait"
+    video.src = "./wait.mp4";
+    video.autoplay = true;
+    video.loop = true;
+    video.muted = true;
+    video.style.position = "absolute";
+    video.style.top = "50%";
+    video.style.left = "50%";
+    video.style.transform = "translate(-50%, -50%)";
+    video.style.width = "1200";
+    video.style.height = "600";
+    video.style.objectFit = "cover";
+    video.style.pointerEvents = "none"; // Prevent interaction with the video
+    video.style.zIndex = "1"; // Set z-index to -1 to place it behind other elements
+    video.style.border = "8px solid gold";
+    video.style.borderRadius = "5px";
+
+    // Makr it 50% dark
+    video.style.filter = "brightness(0.5)";
+
+    document.body.appendChild(video);
 
     const userId = crypto.randomUUID();
     window.userId = userId;
@@ -143,6 +190,7 @@
       const gameCanvas = document.getElementById("game");
       const hud = document.getElementById("hud");
       const sessionDiv = document.getElementById("session");
+      const video = document.getElementById("wait");
 
       // Remove the session div and set the canvas to be visible
       while (sessionDiv.firstChild) {
@@ -150,6 +198,8 @@
       }
 
       sessionDiv.style.display = "none";
+      video.style.display = "none";
+
       hud.style.display = "block";
       gameCanvas.style.display = "block";
     };
@@ -195,6 +245,7 @@
         newAudio.autoplay = true;
         newAudio.loop = true;
         newAudio.hidden = true;
+
         document.body.appendChild(newAudio);
 
         window.setupGame(userId, data.data, true);
@@ -241,21 +292,42 @@
       }
     }
 
+    document.getElementById("sessionId").addEventListener("input", () => {
+      // Check text in the input field
+      const inputField = document.getElementById("sessionId");
+
+      console.log("Input field value:", inputField.value);
+
+      if (!inputField.value || inputField.value === "") {
+        // If empty, remove the audio tag
+        const existingAudios = document.querySelectorAll("audio");
+
+        existingAudios.forEach(audio => {
+          audio.remove();
+        });
+      }
+    });
+
     const playLobbyAudio = () => {
       // remove audio tag if it exists but only 50% of the time
       if (Math.random() > 0.5) {
         const existingAudio = document.querySelector("audio");
+
         if (existingAudio) {
           existingAudio.remove();
         }
       }
+
       // add audio tag with source background_music.mp3
       const audio = document.createElement("audio");
+
       audio.src = "./background_music.mp3";
       audio.autoplay = true;
       audio.loop = true;
       audio.hidden = true;
+
       document.body.appendChild(audio);
+
       if (audio) {
         audio.play();
       }
@@ -267,6 +339,11 @@
       if (sessionId === "") {
         alert("Please enter a session ID.");
         return;
+      }
+
+      // yolo
+      if (sessionId.startsWith("tumtumtum.")) {
+        sessionId = sessionId.substring("tumtumtum.".length);
       }
 
       sessionId = `tumtumtum.${sessionId}`;
@@ -286,7 +363,28 @@
 
       const waitingText = document.createElement("p");
 
-      waitingText.innerText = `Waiting for a player to join: ${sessionId}`;
+      const url = new URL(window.location.href)
+
+      const div = document.createElement("div");
+
+      const text = document.createElement("h3");
+      text.innerText = `Waiting for a player to join: ${sessionId}`;
+
+      const link = document.createElement("a");
+
+      link.innerText = `Share this link`;
+      link.href = `${url.origin}?js=${sessionId}`;
+      link.target = "_blank";
+
+      link.style.backgroundColor = "gold";
+      link.style.color = "black";
+      link.style.padding = "10px";
+
+      div.appendChild(text);
+      div.appendChild(link);
+
+      sessionDiv.appendChild(div);
+
       waitingText.style.fontSize = "24px";
       waitingText.style.fontWeight = "bold";
       waitingText.style.marginTop = "20px";
@@ -376,6 +474,21 @@
           }
         }
     };
+
+    const urlParams = new URLSearchParams(window.location.search);
+
+    const ns = urlParams.get("ns");
+    const js = urlParams.get("js");
+
+    if (ns) {
+      document.getElementById("sessionId").value = ns;
+      newSession();
+    }
+
+    if (js) {
+      document.getElementById("sessionId").value = js;
+      joinSession();
+    }
 
     window.newSession = newSession;
     window.joinSession = joinSession;
