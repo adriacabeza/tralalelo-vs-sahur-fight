@@ -632,7 +632,12 @@ function toggleBlockAtMouse() {
   const gx   = Math.floor(mousePos.x / TILE);
   const gy   = Math.floor(mousePos.y / TILE);
 
-  if (world[gy] && world[gy][gx] !== undefined) {
+  if (
+    world[gy] 
+    && world[gy][gx] !== undefined
+    && world[gy][gx] !== `⭐1`
+    && world[gy][gx] !== `⭐2`
+  ) {
     const isAir = world[gy][gx] === 0;
     world[gy][gx] = isAir ? 1 : 0;
 
