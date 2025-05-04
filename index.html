@@ -156,12 +156,18 @@
       if (data.type === "join") {
         console.log(`Player joined session, replying...`);
         // remove audio tag and add a new audio tag with the same source
-        const audio = document.querySelector("audio");
+        const audios = document.querySelectorAll("audio");
+        // remove all existing audio tags
+        audios.forEach(audio => {
+          audio.remove();
+        });
+
         const newAudio = document.createElement("audio");
         newAudio.src = "./fight_song.mp3";
         newAudio.autoplay = true;
         newAudio.loop = true;
-        audio.parentNode.replaceChild(newAudio, audio);
+        newAudio.hidden = true;
+        document.body.appendChild(newAudio);
 
 
         window.setupGame(userId, data.data);
@@ -207,6 +213,7 @@
       audio.src = "./background_music.mp3";
       audio.autoplay = true;
       audio.loop = true;
+      audio.hidden = true;
       document.body.appendChild(audio);
       if (audio) {
         audio.play();
