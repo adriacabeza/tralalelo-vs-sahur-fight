@@ -129,7 +129,7 @@
     const canvas = document.getElementById("background");
     const ctx = canvas.getContext("2d");
 
-     // Set actual drawing size to match full screen
+    // Set actual drawing size to match full screen
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
 
@@ -189,8 +189,8 @@
 
     setInterval(() => {
       window.eventCallback(
-              "send_player_id",
-              {}
+        "send_player_id",
+        {}
       );
       // cleanup the old players
       activePlayers.forEach((value, key) => {
@@ -222,7 +222,7 @@
     };
 
     window.eventCallback = (type, data) => {
-      if (type === "send_player_id"){
+      if (type === "send_player_id") {
         console.log("Sending player id...");
         nc.publish("tumtumtum.monitoring_topic", sc.encode({
           ts: performance.now(),
@@ -309,11 +309,11 @@
       }
     }
 
-     (async () => {
+    (async () => {
       for await (const msg of sub) {
         console.log("New Session, received message:", msg);
         try {
-          if (msg.subject ===  "tumtumtum.monitoring_topic" || msg.subject === window.sessionId) {
+          if (msg.subject === "tumtumtum.monitoring_topic" || msg.subject === window.sessionId) {
             console.log("Received message:", msg);
             handle(msg)
           }
@@ -389,6 +389,9 @@
 
       const url = new URL(window.location.href)
 
+      // Add query param
+      url.searchParams.set("js", sessionId);
+
       const div = document.createElement("div");
 
       const text = document.createElement("h3");
@@ -396,8 +399,8 @@
 
       const link = document.createElement("a");
 
-      link.innerText = `Share this link`;
-      link.href = `${url.origin}?js=${sessionId}`;
+      link.innerText = `Share this link: ${url.toString()}`;
+      link.href = url.toString();
       link.target = "_blank";
 
       link.style.backgroundColor = "gold";
@@ -473,16 +476,16 @@
       );
 
       showCanvas();
-        for await (const msg of sub) {
-          try {
-            if (msg.subject === "tumtumtum.monitoring_topic" || msg.subject === window.sessionId) {
-              console.log("Received message:", msg);
-              handle(msg)
-            }
-          } catch (e) {
-            console.error("Error handling game msg:", e);
+      for await (const msg of sub) {
+        try {
+          if (msg.subject === "tumtumtum.monitoring_topic" || msg.subject === window.sessionId) {
+            console.log("Received message:", msg);
+            handle(msg)
           }
+        } catch (e) {
+          console.error("Error handling game msg:", e);
         }
+      }
     };
 
     const urlParams = new URLSearchParams(window.location.search);
