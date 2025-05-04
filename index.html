@@ -65,12 +65,10 @@
     }
 
     #hud {
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      color: white;
-      font-size: 24px;
       font-weight: bold;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
     }
 
     #game {
@@ -86,7 +84,7 @@
 </head>
 
 <body>
-  <h1 id="hud" style="display: none;">🟡 0 – ⭐ 0</h1>
+  <h1 id="hud">TRALALERO TRALALA!</h1>
   <canvas id="game" width="1200" height="600"></canvas>
 
   <!-- A div containg an input field for the user to set the session id, and two buttons below: one to create a session, one to join a session. -->
@@ -192,10 +190,15 @@
           data.data.final_state
         )
       } else if (data.type === "new_star") {
-        window.externalToggleBlock(
-          data.data.id,
+        window.externalNewStar(
           data.data.position.x,
           data.data.position.y,
+          data.data.id,
+        )
+      } else if (data.type === "game_over") {
+        window.externalEndGame(
+          data.data.winner,
+          data.data.players,
         )
       }
     }
