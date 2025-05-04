@@ -84,6 +84,7 @@
 
 <body>
   <h1 id="hud">TRALALERO TRALALA!</h1>
+  <div id="players" style="margin-top: 10px; font-size: 38px;"></div>
   <canvas id="background" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -1;"></canvas>
   <canvas id="game" width="1200" height="600"></canvas>
 
@@ -106,7 +107,7 @@
     const canvas = document.getElementById("background");
     const ctx = canvas.getContext("2d");
 
-    // Set actual drawing size to match full screen
+     // Set actual drawing size to match full screen
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
 
@@ -115,6 +116,9 @@
 
     const userId = crypto.randomUUID();
     window.userId = userId;
+    const activePlayers = new Set();
+    activePlayers.add(userId);
+
 
     console.log(`User ID: ${userId}`);
 
@@ -125,6 +129,15 @@
       // This never happened
       // servers: ["ws://localhost:8080"],
     });
+
+    setInterval(() => {
+      window.eventCallback(
+              "send_player_id",
+              {
+                playerId: userId,
+              }
+      );
+    }, 1000);
 
     const showCanvas = () => {
       const gameCanvas = document.getElementById("game");
@@ -142,19 +155,26 @@
     };
 
     window.eventCallback = (type, data) => {
-      // console.log(`Sending event [${data.type}] at ${data.ts}ms from ${userId}`);
-
-      nc.publish(window.sessionId, sc.encode({
-        ts: performance.now(),
-        userId: window.userId,
-        type,
-        data,
-      }));
+      if (type === "send_player_id"){
+        nc.publish("tumtumtum.monitoring_topic", sc.encode({
+          ts: performance.now(),
+          userId: window.userId,
+          type,
+          data,
+        }));
+      } else {
+        nc.publish(window.sessionId, sc.encode({
+          ts: performance.now(),
+          userId: window.userId,
+          type,
+          data,
+        }));
+      }
     };
 
     const handle = (msg) => {
       const data = sc.decode(msg.data);
-
+      console.log("Received message:", data);
       // console.log(`(${data.userId === userId ? 'SELF' : 'OTHER'}) Received [${data.type}] event at ${data.ts}ms from ${data.userId}`);
 
       if (data.userId === userId) {
@@ -176,7 +196,6 @@
         newAudio.loop = true;
         newAudio.hidden = true;
         document.body.appendChild(newAudio);
-
 
         window.setupGame(userId, data.data, true);
 
@@ -215,6 +234,10 @@
           data.data.id,
           data.data.diff,
         )
+      } else if (data.type === "send_player_id") {
+        activePlayers.add(data.data.playerId);
+        const playersDiv = document.getElementById("players");
+        playersDiv.innerText = `Active Players (${activePlayers.size})`;
       }
     }
 
@@ -247,12 +270,14 @@
       }
 
       sessionId = `tumtumtum.${sessionId}`;
-
       window.sessionId = sessionId;
-      console.log(`Creating session with ID: ${sessionId}`);
-
-      const sub = nc.subscribe(sessionId);
-
+      window.prefix = "tumtumtum.>";
+      let sub;
+      try {
+        sub = nc.subscribe(window.prefix);
+      } catch (err) {
+        console.error(`Failed to subscribe to ${window.prefix}:`, err);
+      }
       const sessionDiv = document.getElementById("session");
 
       while (sessionDiv.firstChild) {
@@ -265,16 +290,21 @@
       waitingText.style.fontSize = "24px";
       waitingText.style.fontWeight = "bold";
       waitingText.style.marginTop = "20px";
-
       sessionDiv.appendChild(waitingText);
 
-      for await (const msg of sub) {
-        try {
-          handle(msg);
-        } catch (e) {
-          console.error("Error handling message:", e);
+      await (async () => {
+        for await (const msg of sub) {
+          console.log("New Session, received message:", msg);
+          try {
+            if (msg.subject ===  "tumtumtum.monitoring_topic" || msg.subject === window.sessionId) {
+              console.log("Received message:", msg);
+              handle(msg)
+            }
+          } catch (e) {
+            console.error("Error handling game msg:", e);
+          }
         }
-      }
+      })();
     };
 
     const joinSession = async () => {
@@ -284,14 +314,10 @@
         alert("Please enter a session ID.");
         return;
       }
-
       sessionId = `tumtumtum.${sessionId}`;
       window.sessionId = sessionId;
-
-      console.log(`Joining session with ID: ${sessionId}`);
-
-      const sub = nc.subscribe(sessionId);
-
+      window.prefix = "tumtumtum.>";
+      const sub = nc.subscribe(window.prefix);
       const world = window.generateTestLevel();
 
       const myUserInfo = {
@@ -312,7 +338,7 @@
       }
 
       // Make this request reply
-      const reply = await nc.request(sessionId, sc.encode({
+      const reply = await nc.request(window.sessionId, sc.encode({
         type: "join",
         ts: performance.now(),
         userId,
@@ -339,14 +365,16 @@
       );
 
       showCanvas();
-
-      for await (const msg of sub) {
-        try {
-          handle(msg);
-        } catch (e) {
-          console.error("Error handling message:", e);
+        for await (const msg of sub) {
+          try {
+            if (msg.subject === "tumtumtum.monitoring_topic" || msg.subject === window.sessionId) {
+              console.log("Received message:", msg);
+              handle(msg)
+            }
+          } catch (e) {
+            console.error("Error handling game msg:", e);
+          }
         }
-      }
     };
 
     window.newSession = newSession;
