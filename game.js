@@ -662,21 +662,16 @@ function checkTargets(player) {
     player.score++;
     world[gy][gx] = 0;
 
-    let tx, ty;
+    const { x, y } = getRandomPosition();
 
-    do { 
-      tx = Math.floor(Math.random() * COLS); 
-      ty = Math.floor(Math.random() * ROWS); 
-    } while (world[ty][tx] !== 0);
-
-    world[ty][tx] = `⭐${idx}`;
+    world[y][x] = `⭐${idx}`;
 
     window.eventCallback(
       "new_star",
       {
         position: {
-          x: tx,
-          y: ty
+          x,
+          y
         },
         id: idx,
       }
