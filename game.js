@@ -4,12 +4,9 @@ const eventCallback = () => {
 
 window.eventCallback = eventCallback;
 
-/* ===== CONFIG ===== */
 const canvas = document.getElementById("game");
 
 const TILE            = 48;          // px
-const IMG_SIZE        = 64;          // px
-const DIV_AQUESTA     = IMG_SIZE / TILE;
 const COLS            = Math.floor(canvas.width/TILE);
 const ROWS            = Math.floor(canvas.height/TILE);
 const GRAVITY         = 1;
@@ -22,7 +19,6 @@ const COLLISION_DELTA = 0.05;        // how much to offset the collision box
 const MAGIC_NUMBER = Math.floor(83 * TILE * Math.PI >> 2) // 83 is a prime number, so it will be hard to find a collision;
 
 
-/* ===== GLOBALS ===== */
 const ctx    = canvas.getContext("2d");
 const hud    = document.getElementById("hud");
 
@@ -158,7 +154,6 @@ class Player {
     }
 
     // Send 50%
-    if (Math.random() < 0.2) {
       window.eventCallback(
         "move",
         {
@@ -169,7 +164,6 @@ class Player {
         }
       );
     }
-  }
 
   choose_position() {
     const { x, y } = getRandomPosition();
@@ -179,9 +173,6 @@ class Player {
   }
 
   render() {
-    // ctx.fillStyle = this.color;
-    // ctx.fillRect(this.x * TILE, this.y * TILE, this.w * TILE, this.h * TILE);
-
     const delta = 1 + (this.isJumping ? 0.5 : 0);
 
     if (this.me) {
@@ -191,11 +182,6 @@ class Player {
     }
   }
 }
-
-// const p1 = new Player("A", 2, 10, "Tralalero", { left: "KeyA", right: "KeyD", jump: "KeyW" });
-// const p2 = new Player("B", 28,10, "TumTumTum", { left: "ArrowLeft", right: "ArrowRight", jump: "ArrowUp" });
-// const players = [p1, p2];
-// players.forEach(p => p.choose_position());
 
 const players = [];
 let p1, p2;
@@ -318,7 +304,6 @@ function twoBordersCollide(b1, b2) {
 }
 
 
-/* ===== WORLD HELPERS ===== */
 function collides(x, y, w, h) {
   for (let i = 0; i <= w; i++) {
     for (let j = 0; j <= h; j++) {
@@ -349,17 +334,10 @@ function collides(x, y, w, h) {
   return false;
 }
 
-/*********************************************************************
- *  Tiny Perlin-noise helper (≈70 lines)
- *  – Deterministic: same seed → same noise field.
- *  – No external libraries.
- *********************************************************************/
 function makeNoise(seed = 1337) {
-  /* build a repeat-twice permutation table p[512]  */
   const perm = new Uint8Array(256);
   for (let i = 0; i < 256; i++) perm[i] = i;
 
-  /* super-simple LCG for reproducible shuffling */
   let s = seed >>> 0;
   const rand = () => (s = (s * 1664525 + 1013904223) >>> 0);
 
@@ -372,7 +350,6 @@ function makeNoise(seed = 1337) {
   const p = new Uint8Array(512);
   for (let i = 0; i < 512; i++) p[i] = perm[i & 255];
 
-  /* helpers */
   const fade = t => t * t * t * (t * (t * 6 - 15) + 10);
   const lerp = (a, b, t) => a + t * (b - a);
   const grad = (h, x, y) => {
@@ -380,7 +357,6 @@ function makeNoise(seed = 1337) {
     return ((g & 1) ? -x : x) + ((g & 2) ? -y : y);
   };
 
-  /* 2-D Perlin noise in [-1, 1] */
   function perlin2(x, y) {
     const X = Math.floor(x) & 255;
     const Y = Math.floor(y) & 255;
@@ -418,7 +394,6 @@ function generateTestLevel({
   const minH = Math.floor(ROWS * minSky);
   const maxH = Math.floor(ROWS * maxGround);
 
-  /* ---- 1) build a wavy 1-D heightmap with distortion ------------ */
   for (let x = 0; x < COLS; x++) {
     let n = 0, amp = 1, freq = 1, norm = 0;
     for (let o = 0; o < octaves; o++) {
@@ -429,7 +404,6 @@ function generateTestLevel({
     }
     n /= norm;
 
-    // Add vertical warping for less symmetry
     const verticalWarp = noise.perlin2(0, x * scale) * 0.3;
 
     ground[x] = Math.floor(
@@ -437,22 +411,17 @@ function generateTestLevel({
     );
   }
 
-  /* ---- 2) fill terrain + add caves ----------------------------- */
   for (let y = 0; y < ROWS; y++) {
     for (let x = 0; x < COLS; x++) {
       if (y >= ground[x]) {
         // Below surface, check for caves
         const caveNoise = noise.perlin2(x * caveScale * caveFreq, y * caveScale * caveFreq);
-        const cave = caveNoise > caveAmp ? 1 : 0;
-        world[y][x] = cave;
+        world[y][x] = caveNoise > caveAmp ? 1 : 0;
       } else {
         world[y][x] = 0; // air
       }
     }
   }
-
-  /* ---- 3) Sprinkle stars on surface ----------------------------- */
-  const surfaceY = Math.min(...ground) - 1;
 
   placeStar(`⭐1`);
   placeStar(`⭐2`);
@@ -462,32 +431,6 @@ function generateTestLevel({
 
 window.generateTestLevel = generateTestLevel;
 
-function generateDummyTestLevel() {
-  const density = 0.8;      // % chance of a block
-
-  // 1) Clear & randomly fill
-  for (let y = 0; y < ROWS; y++) {
-    for (let x = 0; x < COLS; x++) {
-      world[y][x] = (Math.random() < density) ? 1 : 0;
-    }
-  }
-  const ty = ROWS - 2;
-  // helper to find a random empty cell
-  function placeStar(symbol) {
-    let tx;
-    do {
-      tx = Math.floor(Math.random() * COLS);
-    } while (world[ty][tx] !== 0);
-    world[ty][tx] = symbol;
-  }
-
-  placeStar(`⭐1`);
-  placeStar(`⭐2`);
-
-  return world;
-}
-
-/* ===== INPUT: toggle blocks ===== */
 canvas.addEventListener("mousedown", e => {
   if (gameOver || players.length === 0) return;
 
@@ -552,16 +495,6 @@ function externalPlayerMove(id, x, y) {
 }
 
 window.externalPlayerMove = externalPlayerMove;
-
-function externalNewStart(id, x, y) {
-  if (gameOver) return;
-
-  const gx   = Math.floor(x);
-  const gy   = Math.floor(y);
-
-  world[gy][gx] = `⭐${id}`;
-}
-
 window.externalPlayerMove = externalPlayerMove;
 
 function toggleBlockAtMouse() {
@@ -589,7 +522,6 @@ function toggleBlockAtMouse() {
   }
 }
 
-/* ===== TARGET PICKUP ===== */
 function checkTargets(player) {
   const gx = Math.floor(player.x), gy = Math.floor(player.y);
 
